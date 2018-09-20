@@ -49,38 +49,38 @@ bool RtpExtensionProcessor::isValidExtension(std::string uri) const {
 }
 
 uint32_t RtpExtensionProcessor::processRtpExtensions(std::shared_ptr<DataPacket> packet) {
-    RtpHeader* head = reinterpret_cast<RtpHeader*>(packet->data);
-    uint32_t len = packet->length;
-    uint16_t totalExtLength = head->getExtLength();
-    if (head->getExtId() == 0xBEDE) {
-        char* extBuffer = (char*)&head->extensions;  // NOLINT
-        uint8_t extByte = 0;
-        uint16_t currentPlace = 1;
-        uint8_t extId = 0;
-        uint8_t extLength = 0;
-        while (currentPlace < (totalExtLength * 4)) {
-            extByte = (uint8_t)(*extBuffer);
-            if (extByte != RtpExtentionIdTranslator::padding) {
-                extId = extByte >> 4;
-                extLength = extByte & (uint8_t)0x0F;
-                const auto& translator =
-                    packet->type == VIDEO_PACKET ? video_extension_id_translator_ : audio_extension_id_translator_;
-                if (translator.getSrcExtention(extId, packet->skipHeaderTranslation) == ABS_SEND_TIME) {
-                    processAbsSendTime(extBuffer);
-                }
-                if (!packet->skipHeaderTranslation) {
-                  translateExtension(extBuffer, translator);
-                }
-                packet->skipHeaderTranslation = true;
-                extBuffer += extLength + 2;
-                currentPlace += extLength + 2;
-            } else {  // It's padding, just skip this byte
-                extBuffer++;
-                currentPlace++;
-            }
+  RtpHeader* head = reinterpret_cast<RtpHeader*>(packet->data);
+  uint32_t len = packet->length;
+  uint16_t totalExtLength = head->getExtLength();
+  if (head->getExtId() == 0xBEDE) {
+    char* extBuffer = (char*) &head->extensions;  // NOLINT
+    uint8_t extByte = 0;
+    uint16_t currentPlace = 1;
+    uint8_t extId = 0;
+    uint8_t extLength = 0;
+    while (currentPlace < (totalExtLength * 4)) {
+      extByte = (uint8_t) (*extBuffer);
+      if (extByte != RtpExtentionIdTranslator::unknown) {
+        extId = extByte >> 4;
+        extLength = extByte & (uint8_t) 0x0F;
+        const auto& translator =
+            packet->type == VIDEO_PACKET ? video_extension_id_translator_ : audio_extension_id_translator_;
+        if (translator.getSrcExtention(extId, packet->skipHeaderTranslation) == ABS_SEND_TIME) {
+          processAbsSendTime(extBuffer);
         }
+        if (!packet->skipHeaderTranslation) {
+          translateExtension(extBuffer, translator);
+        }
+        packet->skipHeaderTranslation = true;
+        extBuffer += extLength + 2;
+        currentPlace += extLength + 2;
+      } else {  // It's padding, just skip this byte
+        extBuffer++;
+        currentPlace++;
+      }
     }
-    return len;
+  }
+  return len;
 }
 
 uint32_t RtpExtensionProcessor::processVideoOrientation(char* buf) {

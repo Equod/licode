@@ -19,7 +19,6 @@ class RtpExtentionIdTranslator {
   {}
   void setDestMap(const RTPExtensionsMap& dest);
   void setSourceMap(const RTPExtensionsMap& scr);
-  void addScrMapItem(const std::pair<int, RTPExtensions>& item);
   void addDestMapItem(const std::pair<int, RTPExtensions>& item);
 
   int translateId(int id) const;

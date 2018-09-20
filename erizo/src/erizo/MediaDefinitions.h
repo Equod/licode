@@ -65,6 +65,7 @@ struct DataPacket {
   std::vector<int> compatible_temporal_layers;
   bool is_keyframe;  // Note: It can be just a keyframe first packet in VP8
   bool ending_of_layer_frame;
+  bool skipHeaderTranslation = false;
   int picture_id;
   int tl0_pic_idx;
   std::string codec;

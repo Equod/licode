@@ -29,9 +29,7 @@ class RtpExtentionIdTranslator {
   const RTPExtensionsMap& getDestMap() const {
     return dest;
   }
-  RTPExtensions getSrcExtention(int id) const;
-  const std::map<int, int>& getScr_to_dest() const;
-
+  RTPExtensions getSrcExtention(int id, bool useDestMap = false) const;
   static constexpr uint8_t padding = 0x00;
   static constexpr uint8_t unknown = 0x00;
 

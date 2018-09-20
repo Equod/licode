@@ -5,8 +5,8 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <utility>
 
+#include "RtpExtensionProcessor.h"
 #include "lib/Clock.h"
 
 namespace erizo {
@@ -48,47 +48,39 @@ bool RtpExtensionProcessor::isValidExtension(std::string uri) const {
   return value != ext_mappings_.end() && translationMap_.find(uri) != translationMap_.end();
 }
 
-uint32_t RtpExtensionProcessor::processRtpExtensions(std::shared_ptr<DataPacket> p) {
-  RtpHeader* head = reinterpret_cast<RtpHeader*>(p->data);
-  uint32_t len = p->length;
-
-  if ((p->type == VIDEO_PACKET || p->type == AUDIO_PACKET) &&
-      head->getExtension() && head->getExtId() == 0xBEDE) {
+uint32_t RtpExtensionProcessor::processRtpExtensions(std::shared_ptr<DataPacket> packet) {
+    RtpHeader* head = reinterpret_cast<RtpHeader*>(packet->data);
+    uint32_t len = packet->length;
     uint16_t totalExtLength = head->getExtLength();
-    char* extBuffer = reinterpret_cast<char*>(&head->extensions);
-    uint8_t extByte = 0;
-    uint16_t currentPlace = 1;
-    uint8_t extId = 0;
-    uint8_t extLength = 0;
-    while (currentPlace < (totalExtLength * 4)) {
-      extByte = (uint8_t) (*extBuffer);
-      if (extByte != RtpExtentionIdTranslator::unknown) {
-        extId = extByte >> 4;
-        if (extId == 15) {  // https://tools.ietf.org/html/rfc5285#section-4.2
-          return len;
+    if (head->getExtId() == 0xBEDE) {
+        char* extBuffer = (char*)&head->extensions;  // NOLINT
+        uint8_t extByte = 0;
+        uint16_t currentPlace = 1;
+        uint8_t extId = 0;
+        uint8_t extLength = 0;
+        while (currentPlace < (totalExtLength * 4)) {
+            extByte = (uint8_t)(*extBuffer);
+            if (extByte != RtpExtentionIdTranslator::padding) {
+                extId = extByte >> 4;
+                extLength = extByte & (uint8_t)0x0F;
+                const auto& translator =
+                    packet->type == VIDEO_PACKET ? video_extension_id_translator_ : audio_extension_id_translator_;
+                if (translator.getSrcExtention(extId, packet->skipHeaderTranslation) == ABS_SEND_TIME) {
+                    processAbsSendTime(extBuffer);
+                }
+                if (!packet->skipHeaderTranslation) {
+                  translateExtension(extBuffer, translator);
+                }
+                packet->skipHeaderTranslation = true;
+                extBuffer += extLength + 2;
+                currentPlace += extLength + 2;
+            } else {  // It's padding, just skip this byte
+                extBuffer++;
+                currentPlace++;
+            }
         }
-        extLength = extByte & 0x0F;
-        const auto& translator =
-            p->type == VIDEO_PACKET ? video_extension_id_translator_ : audio_extension_id_translator_;
-        switch (translator.getSrcExtention(extId)) {
-          case ABS_SEND_TIME:
-            processAbsSendTime(extBuffer);
-            break;
-          case VIDEO_ORIENTATION:
-            processVideoOrientation(extBuffer);
-            break;
-          default:break;
-        }
-        translateExtension(extBuffer, translator);
-        extBuffer += extLength + 2;
-        currentPlace += extLength + 2;
-      } else {  // It's padding (https://tools.ietf.org/html/rfc5285#section-4.2), skip this byte
-        extBuffer++;
-        currentPlace++;
-      }
     }
-  }
-  return len;
+    return len;
 }
 
 uint32_t RtpExtensionProcessor::processVideoOrientation(char* buf) {
@@ -98,19 +90,19 @@ uint32_t RtpExtensionProcessor::processVideoOrientation(char* buf) {
 }
 
 uint32_t RtpExtensionProcessor::processAbsSendTime(char* buf) {
-  duration now = clock::now().time_since_epoch();
-  AbsSendTimeExtension* head = reinterpret_cast<AbsSendTimeExtension*>(buf);
-  auto now_sec = std::chrono::duration_cast<std::chrono::seconds>(now);
-  auto now_usec = std::chrono::duration_cast<std::chrono::microseconds>(now);
+    duration now = clock::now().time_since_epoch();
+    AbsSendTimeExtension* head = reinterpret_cast<AbsSendTimeExtension*>(buf);
+    auto now_sec = std::chrono::duration_cast<std::chrono::seconds>(now);
+    auto now_usec = std::chrono::duration_cast<std::chrono::microseconds>(now);
 
-  uint32_t now_usec_only = now_usec.count() - now_sec.count()*1e+6;
+    uint32_t now_usec_only = now_usec.count() - now_sec.count() * 1e+6;
 
-  uint8_t seconds = now_sec.count() & 0x3F;
-  uint32_t absecs = now_usec_only * ((1LL << 18) - 1) * 1e-6;
+    uint8_t seconds = now_sec.count() & 0x3F;
+    uint32_t absecs = now_usec_only * ((1LL << 18) - 1) * 1e-6;
 
-  absecs = (seconds << 18) + absecs;
-  head->setAbsSendTime(absecs);
-  return 0;
+    absecs = (seconds << 18) + absecs;
+    head->setAbsSendTime(absecs);
+    return 0;
 }
 
 void RtpExtensionProcessor::translateExtension(void* extBuffer, const RtpExtentionIdTranslator& translator) {
@@ -133,8 +125,8 @@ void RtpExtensionProcessor::translateExtension(void* extBuffer, const RtpExtenti
 }
 
 uint32_t RtpExtensionProcessor::stripExtension(char* buf, int len) {
-  // TODO(pedro)
-  return len;
+    // TODO(pedro)
+    return len;
 }
 
 std::map<std::string, RTPExtensions> RtpExtensionProcessor::createTranslationMap() {

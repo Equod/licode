@@ -19,14 +19,15 @@ void RtpExtentionIdTranslator::UpdateMap() {
   }
 }
 
-RTPExtensions RtpExtentionIdTranslator::getSrcExtention(int id) const {
-  const auto item = src.find(id);
-  return item != src.end()? item->second : UNKNOWN;
+RTPExtensions RtpExtentionIdTranslator::getSrcExtention(int id, bool useDestMap) const {
+  const auto& map = !useDestMap ? src : dest;
+  const auto item = map.find(id);
+  return item != map.end() ? item->second : UNKNOWN;
 }
 
-const std::map<int, int>& RtpExtentionIdTranslator::getScr_to_dest() const {
-  return scr_to_dest;
-}
+//const std::map<int, int>& RtpExtentionIdTranslator::getScr_to_dest() const {
+//  return scr_to_dest;
+//}
 
 int RtpExtentionIdTranslator::translateId(int id) const {
   auto item = scr_to_dest.find(id);

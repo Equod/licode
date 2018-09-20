@@ -77,10 +77,10 @@ void RtpPaddingGeneratorHandler::write(Context *ctx, std::shared_ptr<DataPacket>
     first_packet_received_ = true;
   }
 
-  ctx->fireWrite(packet);
-
   if (is_higher_sequence_number) {
     onVideoPacket(std::move(packet));
+  } else {
+    ctx->fireWrite(std::move(packet));
   }
 }
 
@@ -136,14 +136,23 @@ bool RtpPaddingGeneratorHandler::isHigherSequenceNumber(std::shared_ptr<DataPack
 
 void RtpPaddingGeneratorHandler::onVideoPacket(std::shared_ptr<DataPacket> packet) {
   if (!enabled_) {
+    getContext()->fireWrite(std::move(packet));
     return;
   }
 
   recalculatePaddingRate();
 
-  RtpHeader *rtp_header = reinterpret_cast<RtpHeader*>(packet->data);
-  if (rtp_header->getMarker()) {
-    onPacketWithMarkerSet(std::move(packet));
+  RtpHeader* rtp_header = reinterpret_cast<RtpHeader*>(packet->data);
+  if (rtp_header->getMarker() && number_of_full_padding_packets_ > 0) {
+    RtpHeader copied_header(*rtp_header);
+    auto padding_packet = std::make_shared<DataPacket>(packet->comp,
+                                                       (char*) &copied_header,
+                                                       copied_header.getHeaderLength(),
+                                                       packet->type);
+    getContext()->fireWrite(std::move(packet));
+    onPacketWithMarkerSet(std::move(padding_packet));
+  } else {
+    getContext()->fireWrite(std::move(packet));
   }
 }
 

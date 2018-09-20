@@ -146,7 +146,7 @@ void RtpPaddingGeneratorHandler::onVideoPacket(std::shared_ptr<DataPacket> packe
   if (rtp_header->getMarker() && number_of_full_padding_packets_ > 0) {
     RtpHeader copied_header(*rtp_header);
     auto padding_packet = std::make_shared<DataPacket>(packet->comp,
-                                                       (char*) &copied_header,
+                                                       reinterpret_cast<char*>(&copied_header),
                                                        copied_header.getHeaderLength(),
                                                        packet->type);
     getContext()->fireWrite(std::move(packet));

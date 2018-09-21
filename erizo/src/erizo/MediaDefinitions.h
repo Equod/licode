@@ -10,6 +10,7 @@
 
 #include "lib/Clock.h"
 #include "lib/ClockUtils.h"
+#include <rtp/RtcpPackets.h>
 
 namespace erizo {
 
@@ -56,8 +57,19 @@ struct DataPacket {
     return item != compatible_temporal_layers.end();
   }
 
+  void parse_rtcp_packets() {
+    rtcp_packets.parse(data, length);
+  }
+
+  const RtcpPackets& getRtcp_packets() const {
+    return rtcp_packets;
+  }
+  RtcpPackets& getRtcp_packets() {
+    return rtcp_packets;
+  }
+
   int comp;
-  char data[1500];
+  char data[1500] = {};
   int length;
   packetType type;
   uint64_t received_time_ms;
@@ -70,6 +82,7 @@ struct DataPacket {
   int tl0_pic_idx;
   std::string codec;
   unsigned int clock_rate = 0;
+  RtcpPackets rtcp_packets;
 };
 
 class Monitor {

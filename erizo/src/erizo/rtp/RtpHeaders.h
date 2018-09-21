@@ -414,28 +414,28 @@ class RtcpHeader {
   inline bool isREMB() {
     return packettype == RTCP_PS_Feedback_PT && blockcount == RTCP_AFB;
   }
-  inline bool isRtcp(void) {
+  inline bool isRtcp() const {
     return (packettype >= RTCP_MIN_PT && packettype <= RTCP_MAX_PT);
   }
-  inline uint8_t getPacketType() {
+  inline uint8_t getPacketType() const {
     return packettype;
   }
   inline void setPacketType(uint8_t pt) {
     packettype = pt;
   }
-  inline uint8_t getBlockCount() {
+  inline uint8_t getBlockCount() const {
     return (uint8_t)blockcount;
   }
   inline void setBlockCount(uint8_t count) {
     blockcount = count;
   }
-  inline uint16_t getLength() {
+  inline uint16_t getLength() const {
     return ntohs(length);
   }
   inline void setLength(uint16_t theLength) {
     length = htons(theLength);
   }
-  inline uint32_t getSSRC() {
+  inline uint32_t getSSRC() const {
     return ntohl(ssrc);
   }
   inline void setSSRC(uint32_t aSsrc) {

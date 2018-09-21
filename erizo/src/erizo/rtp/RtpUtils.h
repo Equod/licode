@@ -14,6 +14,9 @@ namespace erizo {
 class RtpUtils {
  public:
   static bool sequenceNumberLessThan(uint16_t first, uint16_t second);
+  static int forEachRtcpPacketInBuffer(const void* buffer, int len, std::function<void(const RtcpHeader*)> f);
+  static int forEachRtcpPacketInBuffer(void* buffer, int len, std::function<void(RtcpHeader*)> f);
+  static bool HasPacketRtcpInBuffer(const void* buffer, size_t len, std::function<bool(const RtcpHeader*)> matcher);
 
   static bool numberLessThan(uint16_t first, uint16_t last, int bits);
 
@@ -35,6 +38,25 @@ class RtpUtils {
   static int getPaddingLength(std::shared_ptr<DataPacket> packet);
 
   static std::shared_ptr<DataPacket> makePaddingPacket(std::shared_ptr<DataPacket> packet, uint8_t padding_size);
+
+  static bool isHeaHeaderPLI(const RtcpHeader* header);
+  static bool isHeaHeaderREMB(const RtcpHeader* header);
+  static bool isHeaHeaderFIR(const RtcpHeader* header);
+  static bool isHeaHeaderNACK(const RtcpHeader* header);
+
+  static bool HasPLI(const DataPacket& packet) { return HasPLI(packet.data, static_cast<size_t>(packet.length)); }
+
+  static bool HasREMB(const DataPacket& packet) { return HasREMB(packet.data, static_cast<size_t>(packet.length)); }
+
+  static bool HasFIR(const DataPacket& packet) { return HasFIR(packet.data, static_cast<size_t>(packet.length)); }
+
+  static bool HasNACK(const DataPacket& packet) { return HasNACK(packet.data, static_cast<size_t>(packet.length)); }
+
+ protected:
+  static bool HasPLI(const void* buffer, size_t len);
+  static bool HasREMB(const void* buffer, size_t len);
+  static bool HasFIR(const void* buffer, size_t len);
+  static bool HasNACK(const void* buffer, size_t len);
 };
 
 }  // namespace erizo

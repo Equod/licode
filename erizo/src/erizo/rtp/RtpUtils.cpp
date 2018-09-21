@@ -1,4 +1,5 @@
 #include "rtp/RtpUtils.h"
+#include "rtp/PacketPrintUtils.h"
 
 #include <cmath>
 #include <memory>
@@ -44,6 +45,62 @@ void RtpUtils::forEachNack(RtcpHeader *chead, std::function<void(uint16_t, uint1
       aux_pointer += 4;
     }
   }
+}
+
+int RtpUtils::forEachRtcpPacketInBuffer(const void* buffer, int len, std::function<void(const RtcpHeader*)> f) {
+  auto data = reinterpret_cast<const char*>(buffer);
+  int remain_len = static_cast<int>(len);
+  int count = 0;
+  do {
+    if(remain_len >= (int)sizeof(RtcpHeaderOnly)) {
+      auto header = reinterpret_cast<const RtcpHeaderOnly*>(data);
+      if(header->IsValid()) {
+        f(reinterpret_cast<const RtcpHeader*>(header));
+        ++count;
+        auto packet_len = (header->getLength() + 1) * 4;
+        data += packet_len;
+        remain_len -= packet_len;
+      } else {
+        remain_len = 0;
+      }
+    } else {
+      return count;
+    }
+  } while (remain_len > 0);
+  return count;
+}
+
+int RtpUtils::forEachRtcpPacketInBuffer(void* buffer, int len, std::function<void(RtcpHeader*)> f) {
+  auto data = reinterpret_cast<char*>(buffer);
+  int remain_len = static_cast<int>(len);
+  int count = 0;
+  do {
+    if(remain_len >= (int)sizeof(RtcpHeaderOnly)) {
+      auto header = reinterpret_cast<RtcpHeaderOnly*>(data);
+      if(header->IsValid()) {
+        f(reinterpret_cast<RtcpHeader*>(header));
+        ++count;
+        auto packet_len = (header->getLength() + 1) * 4;
+        data += packet_len;
+        remain_len -= packet_len;
+      } else {
+        remain_len = 0;
+      }
+    } else {
+      remain_len = 0;
+    }
+  } while (remain_len > 0);
+  return count;
+}
+
+bool RtpUtils::HasPacketRtcpInBuffer(const void* buffer, size_t len, std::function<bool(const RtcpHeader*)> matcher) {
+  bool result = false;
+  forEachRtcpPacketInBuffer(buffer, static_cast<int>(len), [&result, matcher](const RtcpHeader* header){
+    if(!result) {
+      result = matcher(header);
+    }
+  });
+  return result;
 }
 
 bool RtpUtils::isPLI(std::shared_ptr<DataPacket> packet) {
@@ -159,5 +216,43 @@ std::shared_ptr<DataPacket> RtpUtils::makePaddingPacket(std::shared_ptr<DataPack
 
   return std::make_shared<DataPacket>(packet->comp, packet_buffer, packet_length, packet->type);
 }
+
+bool RtpUtils::isHeaHeaderPLI(const RtcpHeader* header) {
+  return header->getPacketType() == RTCP_PS_Feedback_PT &&
+      header->getBlockCount() == RTCP_PLI_FMT;
+}
+
+bool RtpUtils::isHeaHeaderREMB(const RtcpHeader* header) {
+  return header->getPacketType() == RTCP_PS_Feedback_PT &&
+      header->getBlockCount() == RTCP_AFB;
+}
+
+bool RtpUtils::isHeaHeaderFIR(const RtcpHeader* header) {
+  return header->getPacketType() == RTCP_PS_Feedback_PT &&
+      header->getBlockCount() == RTCP_FIR_FMT;
+}
+
+bool RtpUtils::isHeaHeaderNACK(const RtcpHeader* header) {
+  return header->getPacketType() == RTCP_RTP_Feedback_PT &&
+      header->getBlockCount() == 1;
+}
+
+bool RtpUtils::HasPLI(const void* buffer, size_t len) {
+  return HasPacketRtcpInBuffer(buffer, len, isHeaHeaderPLI);
+}
+
+bool RtpUtils::HasREMB(const void* buffer, size_t len) {
+  return HasPacketRtcpInBuffer(buffer, len, isHeaHeaderREMB);
+}
+
+bool RtpUtils::HasFIR(const void* buffer, size_t len) {
+  return HasPacketRtcpInBuffer(buffer, len, isHeaHeaderFIR);
+}
+
+bool RtpUtils::HasNACK(const void* buffer, size_t len) {
+  return HasPacketRtcpInBuffer(buffer, len, isHeaHeaderNACK);
+}
+
+
 
 }  // namespace erizo

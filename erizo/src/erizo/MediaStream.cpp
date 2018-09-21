@@ -38,6 +38,8 @@
 #include "rtp/RtpPaddingGeneratorHandler.h"
 #include "rtp/RtpUtils.h"
 #include "rtp/PacketCodecParser.h"
+#include "rtp/PacketPrinter.h"
+#include "rtp/PacketRtcpParser.h"
 
 namespace erizo {
 DEFINE_LOGGER(MediaStream, "MediaStream");
@@ -378,6 +380,8 @@ void MediaStream::initializePipeline() {
   pipeline_->addFront(std::make_shared<LayerDetectorHandler>());
   pipeline_->addFront(std::make_shared<OutgoingStatsHandler>());
   pipeline_->addFront(std::make_shared<PacketCodecParser>());
+  pipeline_->addFront(std::make_shared<PacketPrinter>());
+  pipeline_->addFront(std::make_shared<PacketRtcpParser>());
 
   pipeline_->addFront(std::make_shared<PacketWriter>(this));
   pipeline_->finalize();
